@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import ProviderDashboard from './pages/ProviderDashboard';
@@ -29,30 +29,43 @@ const ProtectedRoute: React.FC<{
   return <>{children}</>;
 };
 
-const AppContent: React.FC = () => {
+const AppContent = () => {
   const location = useLocation();
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const isLoginPage = location.pathname === '/login';
 
   return (
-    <div style={{ width: '100%', minHeight: '100vh' }}>
+    <div className={isLoginPage ? 'vh-100' : ''}>
       {!isLoginPage && user && (
-        <nav className="navbar navbar-expand-lg navbar-dark bg-primary">
+        <nav className="navbar navbar-expand-lg">
           <div className="container">
-            <a className="navbar-brand" href="/">VSee</a>
+            <a className="navbar-brand" href="/">
+              <span className="v">V</span>See
+            </a>
+            <div className="navbar-nav ms-auto">
+              <button 
+                className="btn btn-outline-light" 
+                onClick={async () => {
+                  try {
+                    await logout();
+                    navigate('/login');
+                  } catch (error) {
+                    console.error('Logout failed:', error);
+                  }
+                }}
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </nav>
       )}
-      <main style={{ height: isLoginPage ? '100vh' : 'auto' }}>
+      <div className={`${isLoginPage ? '' : 'container mt-4'}`}>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
           <Route
-            path="/provider"
-            element={
-              <ProtectedRoute allowedRoles={['provider']}>
-                <ProviderDashboard />
-              </ProtectedRoute>
-            }
+            path="/login"
+            element={user ? <Navigate to={`/${user?.type}`} /> : <LoginPage />}
           />
           <Route
             path="/visitor"
@@ -62,9 +75,20 @@ const AppContent: React.FC = () => {
               </ProtectedRoute>
             }
           />
-          <Route path="/" element={<Navigate to="/login" />} />
+          <Route
+            path="/provider"
+            element={
+              <ProtectedRoute allowedRoles={['provider']}>
+                <ProviderDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/"
+            element={user ? <Navigate to={`/${user.type}`} /> : <Navigate to="/login" />}
+          />
         </Routes>
-      </main>
+      </div>
     </div>
   );
 };

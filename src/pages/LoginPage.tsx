@@ -41,14 +41,17 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="bg-light d-flex align-items-center justify-content-center" style={{ minHeight: '100vh', width: '100vw' }}>
-      <div className="login-container">
+    <div className="bg-light d-flex align-items-center justify-content-center h-100">
+      <div className="login-container" style={{ width: '100%', maxWidth: '400px', margin: '0 20px' }}>
         <div className="text-center mb-4">
-          <h1 className="h3 text-primary">VSee</h1>
+          <h1 className="h3">
+            <span className="v">V</span>
+            <span className="text-primary">See</span>
+          </h1>
         </div>
         <div className="card shadow">
-          <div className="card-body">
-            <h2 className="card-title text-center mb-4">Sign in to your account</h2>
+          <div className="card-body p-4">
+            <h2 className="card-title text-center h4 mb-4">Sign in to your account</h2>
             
             {error && (
               <div className="alert alert-danger" role="alert">
