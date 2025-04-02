@@ -294,9 +294,20 @@ export const VisitorProvider: React.FC<{ children: React.ReactNode }> = ({ child
         dispatch({ type: VISITOR_EVENTS.DROPPED_OFF });
       }
     });
+    const unsubscribeQueue = subscribeToChannel('lounge.queue', {
+      'visitor.joined.queue': async () => {
+        console.log('catch visitor.joined.queue', true);
+        await fetchQueueStatus();
+      },
+      'visitor.exited.queue': async () => {
+        console.log('catch visitor.exited.queue', true);
+        await fetchQueueStatus();
+      },
+    });
 
     return () => {
       unsubscribeExamination();
+      unsubscribeQueue();
     };
   }, [user]);
 
