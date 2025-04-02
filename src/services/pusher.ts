@@ -2,6 +2,7 @@ import Pusher from 'pusher-js';
 import {
   PUSHER_APP_KEY,
   PUSHER_APP_CLUSTER,
+  PUSHER_APP_SCHEME,
 } from '../config';
 
 // Enable Pusher logging
@@ -10,6 +11,7 @@ Pusher.logToConsole = true;
 const pusher = new Pusher(PUSHER_APP_KEY, {
   cluster: PUSHER_APP_CLUSTER,
   forceTLS: true,
+  enabledTransports: ['ws', 'wss'],
   channelAuthorization: {
     endpoint: '/api/pusher/auth',
     transport: 'ajax',
