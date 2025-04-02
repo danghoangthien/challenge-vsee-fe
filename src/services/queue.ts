@@ -34,8 +34,8 @@ class QueueService {
     return response.data;
   }
 
-  async dropoffVisitor(visitorId: number): Promise<QueueActionResponse> {
-    const response = await api.post<QueueActionResponse>('/provider/lounge/dropoff', {
+  async completeExamination(visitorId: number): Promise<QueueActionResponse> {
+    const response = await api.post<QueueActionResponse>('/provider/examination/complete', {
       visitor_id: visitorId,
     });
     return response.data;
@@ -46,14 +46,14 @@ class QueueService {
     await api.post('/visitor/lounge/queue', { vsee_id: vseeId, reason });
   }
 
-  async exitQueue(visitorId: number): Promise<void> {
-    await api.delete(`/visitor/lounge/queue/${visitorId}`);
+  async exitQueue(): Promise<void> {
+    await api.delete(`/visitor/lounge/queue`);
   }
 
   async getQueueItem(): Promise<QueueItem | null> {
     try {
       const response = await api.get('/visitor/lounge/queueItem');
-      return response.data;
+      return response.data.data;
     } catch (error) {
       if ((error as any)?.response?.status === 404) {
         return null;

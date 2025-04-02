@@ -1,65 +1,83 @@
 import React from 'react';
 import { useVisitor } from '../../contexts/VisitorContext';
+import { useLoadingState } from '../../hooks/useLoadingState';
+import './QueueStatus.css';
 
 const QueueStatus: React.FC = () => {
   const { state, exitQueue } = useVisitor();
-  const { queueStatus, isLoading } = state;
+  const { queueStatus } = state;
+  console.log('queueStatus', queueStatus);
+  const { isLoading, withLoading } = useLoadingState();
+
+  const handleExitQueue = async () => {
+    await withLoading(async () => {
+      await exitQueue();
+    });
+  };
 
   if (!queueStatus.isInQueue) return null;
 
+  const formatJoinedAt = () => {
+    if (!queueStatus.joinedAt) return 'N/A';
+    return new Date(queueStatus.joinedAt).toLocaleTimeString();
+  };
+
   return (
-    <div className="card">
-      <div className="card-header">
-        <h5 className="card-title mb-0">Queue Status</h5>
-      </div>
-      <div className="card-body">
-        {queueStatus.position && (
-          <div className="mb-4 text-center">
-            <h6 className="text-muted mb-2">Your Position</h6>
-            <h2 className="display-4">{queueStatus.position}</h2>
+    <div className="waiting-room-container">
+      <h1>Welcome to Code Challenge Waiting Room</h1>
+      <p className="emergency-text">If this is an emergency, please call 911.</p>
+
+      <div className="queue-status">
+        <div className="provider-header">
+          <i className="bi bi-clock-history"></i> Waiting for provider
+        </div>
+
+        <div className="status-content">
+          <div className="queue-info">
+            <div className="info-item">
+              <label>Position in Queue</label>
+              <span>{queueStatus.position || 'N/A'}</span>
+            </div>
+            <div className="info-item">
+              <label>Joined At</label>
+              <span>{formatJoinedAt()}</span>
+            </div>
+            <div className="info-item">
+              <label>Waited Time</label>
+              <span>{queueStatus.waitedTime || 'N/A'}</span>
+            </div>
+            <div className="info-item">
+              <label>Estimated Wait Time</label>
+              <span>{queueStatus.estimatedWaitTime || 'N/A'}</span>
+            </div>
           </div>
-        )}
-        {queueStatus.totalVisitors && (
-          <div className="mb-4">
-            <h6 className="text-muted mb-2">Total Visitors in Queue</h6>
-            <p className="lead mb-0">{queueStatus.totalVisitors}</p>
-          </div>
-        )}
-        {queueStatus.waitedTime && (
-          <div className="mb-4">
-            <h6 className="text-muted mb-2">Waited Time</h6>
-            <p className="lead mb-0">{queueStatus.waitedTime}</p>
-          </div>
-        )}
-        {queueStatus.estimatedWaitTime && (
-          <div className="mb-4">
-            <h6 className="text-muted mb-2">Estimated Wait Time</h6>
-            <p className="lead mb-0">{queueStatus.estimatedWaitTime}</p>
-          </div>
-        )}
-        {queueStatus.joinedAt && (
-          <div className="mb-4">
-            <h6 className="text-muted mb-2">Joined At</h6>
-            <p className="lead mb-0">
-              {new Date(queueStatus.joinedAt).toLocaleString()}
-            </p>
-          </div>
-        )}
-        <div className="d-grid">
+
           <button
-            className="btn btn-danger"
-            onClick={exitQueue}
+            onClick={handleExitQueue}
+            className="btn-exit-room"
             disabled={isLoading}
           >
             {isLoading ? (
               <>
-                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                Exiting Queue...
+                <span 
+                  className="spinner-border spinner-border-sm me-2" 
+                  role="status" 
+                  aria-hidden="true"
+                />
+                Exiting...
               </>
             ) : (
-              'Exit Queue'
+              'Exit Waiting Room'
             )}
           </button>
+
+          <div className="relaunch-notice">
+            If you close the video conference by mistake please,{' '}
+            <button className="btn-link">
+              click here to relaunch video
+            </button>{' '}
+            again.
+          </div>
         </div>
       </div>
     </div>

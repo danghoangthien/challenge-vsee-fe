@@ -10,6 +10,11 @@ Pusher.logToConsole = true;
 const pusher = new Pusher(PUSHER_APP_KEY, {
   cluster: PUSHER_APP_CLUSTER,
   forceTLS: true,
+  channelAuthorization: {
+    endpoint: '/api/pusher/auth',
+    transport: 'ajax',
+    headers: {}
+  }
 });
 
 // Add connection event handlers
@@ -35,6 +40,18 @@ pusher.connection.bind('disconnected', () => {
 pusher.connection.bind('error', (err: any) => {
   console.error('Pusher connection error:', err);
 });
+
+// Handle browser close/refresh
+const handleBeforeUnload = () => {
+  console.log('Browser closing, cleaning up Pusher connection...');
+  // Disconnect from all channels
+  pusher.disconnect();
+};
+
+// Add event listener for browser close/refresh
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', handleBeforeUnload);
+}
 
 export const subscribeToChannel = (channelName: string, events: Record<string, (data: any) => void>) => {
   console.log(`Subscribing to channel: ${channelName}`);
@@ -84,6 +101,14 @@ export const subscribeToPrivateChannel = (channelName: string, events: Record<st
     });
     pusher.unsubscribe(`private-${channelName}`);
   };
+};
+
+// Cleanup function to remove event listener
+export const cleanup = () => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+  }
+  pusher.disconnect();
 };
 
 export default pusher; 

@@ -1,0 +1,14 @@
+.alert-info {
+  background-color: #f0f9e8;
+  border-color: #75B53A;
+  color: #2d5a0f;
+}
+
+.alert-info .alert-link {
+  color: #1a3a0a;
+  text-decoration: underline;
+}
+
+.alert-info .btn-close {
+  color: #2d5a0f;
+} 

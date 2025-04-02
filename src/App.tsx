@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import ProviderDashboard from './pages/ProviderDashboard';
 import VisitorDashboard from './pages/VisitorDashboard';
+import { VisitorContextProvider } from './components/visitor/VisitorContextProvider';
+import { ProviderContextProvider } from './components/provider/ProviderContextProvider';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
@@ -13,17 +15,19 @@ const ProtectedRoute: React.FC<{
   allowedRoles?: string[];
 }> = ({ children, allowedRoles }) => {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return <div className="text-center p-5">Loading...</div>;
   }
 
   if (!user) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" state={{ from: location }} />;
   }
 
   if (allowedRoles && !allowedRoles.includes(user.type)) {
-    return <Navigate to="/" />;
+    // Don't redirect to login if user is authenticated but unauthorized
+    return <>{children}</>;
   }
 
   return <>{children}</>;
@@ -34,6 +38,14 @@ const AppContent = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const isLoginPage = location.pathname === '/login';
+
+  // If user is on the login page and they're already logged in,
+  // only redirect if they're not coming from a protected route
+  React.useEffect(() => {
+    if (user && isLoginPage && !location.state?.from) {
+      navigate(`/${user.type}`);
+    }
+  }, [user, isLoginPage, navigate]);
 
   return (
     <div className={isLoginPage ? 'vh-100' : ''}>
@@ -70,17 +82,17 @@ const AppContent = () => {
           <Route
             path="/visitor"
             element={
-              <ProtectedRoute allowedRoles={['visitor']}>
+              <VisitorContextProvider>
                 <VisitorDashboard />
-              </ProtectedRoute>
+              </VisitorContextProvider>
             }
           />
           <Route
             path="/provider"
             element={
-              <ProtectedRoute allowedRoles={['provider']}>
+              <ProviderContextProvider>
                 <ProviderDashboard />
-              </ProtectedRoute>
+              </ProviderContextProvider>
             }
           />
           <Route
@@ -95,11 +107,11 @@ const AppContent = () => {
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <Router>
+    <Router>
+      <AuthProvider>
         <AppContent />
-      </Router>
-    </AuthProvider>
+      </AuthProvider>
+    </Router>
   );
 };
 

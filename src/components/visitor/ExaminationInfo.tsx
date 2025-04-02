@@ -1,42 +1,40 @@
 import React from 'react';
 import { useVisitor } from '../../contexts/VisitorContext';
+import './ExaminationInfo.css';
 
 const ExaminationInfo: React.FC = () => {
-  const { state } = useVisitor();
+  const { state, exitQueue } = useVisitor();
   const { examinationStatus } = state;
 
   if (!examinationStatus.isActive) return null;
 
+  const handleRelaunchVideo = () => {
+    // TODO: Implement video relaunch logic
+    console.log('Relaunching video...');
+  };
+
   return (
-    <div className="card">
-      <div className="card-header">
-        <h5 className="card-title mb-0">Examination in Progress</h5>
-      </div>
-      <div className="card-body">
-        <div className="mb-4">
-          <h6 className="text-muted mb-2">Provider</h6>
-          <p className="lead mb-0">{examinationStatus.providerName}</p>
+    <div className="waiting-room-container">
+      <h1>Welcome to Code Challenge Examination Room</h1>
+      <p className="emergency-text">If this is an emergency, please call 911.</p>
+      <div className="examination-status">
+        <div className="provider-header">
+          <i className="bi bi-clock-history"></i> Connected with your provider
         </div>
-        {examinationStatus.startedAt && (
-          <div className="mb-4">
-            <h6 className="text-muted mb-2">Started At</h6>
-            <p className="lead mb-0">
-              {new Date(examinationStatus.startedAt).toLocaleString()}
-            </p>
+
+        <div className="status-content">
+          <h2>{"<Provider Info>"}</h2>
+          <div className="relaunch-notice">
+            If you close the video conference by mistake please,{' '}
+            <button 
+              onClick={handleRelaunchVideo}
+              className="btn-link"
+            >
+              click here to relaunch video
+            </button>{' '}
+            again.
           </div>
-        )}
-        {examinationStatus.duration && (
-          <div className="mb-4">
-            <h6 className="text-muted mb-2">Duration</h6>
-            <p className="lead mb-0">{examinationStatus.duration}</p>
-          </div>
-        )}
-        {examinationStatus.examinationId && (
-          <div className="mb-4">
-            <h6 className="text-muted mb-2">Examination ID</h6>
-            <p className="lead mb-0">{examinationStatus.examinationId}</p>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

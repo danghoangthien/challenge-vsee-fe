@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { subscribeToChannel } from '../services/pusher';
 import queueService from '../services/queue';
 import examinationService from '../services/examination';
-import { QueueEvent, VisitorPickupEventData } from '../types/events';
+import { handleUnauthorizedError } from '../hooks/useAuthorization';
+import { ExaminationDetail } from '../services/examination';
 
 // Constants
 export const VISITOR_EVENTS = {
@@ -14,38 +15,71 @@ export const VISITOR_EVENTS = {
   EXAMINATION_COMPLETED: 'EXAMINATION_COMPLETED',
   ERROR_OCCURRED: 'ERROR_OCCURRED',
   UPDATE_QUEUE_STATUS: 'UPDATE_QUEUE_STATUS',
-  UPDATE_EXAMINATION_STATUS: 'UPDATE_EXAMINATION_STATUS',
+  UPDATE_EXAMINATION_STATUS: 'UPDATE_EXAMINATION_STATUS'
 } as const;
 
 // Types
-export interface QueueStatus {
+interface QueueStatus {
   isInQueue: boolean;
-  position?: number;
-  joinedAt?: string;
-  waitedTime?: string;
-  estimatedWaitTime?: string;
-  totalVisitors?: number;
+  position: number | null;
+  estimatedWaitTime: string | null;
+  waitedTime: string | null;
+  joinedAt: string | null;
 }
 
-export interface ExaminationStatus {
+interface ExaminationStatus {
   isActive: boolean;
-  providerName?: string;
-  providerId?: number;
-  examinationId?: number;
-  startedAt?: string;
-  duration?: string;
+  currentExamination: ExaminationDetail | null;
 }
 
-export interface VisitorState {
+interface VisitorState {
+  isAuthorized: boolean | null;
   queueStatus: QueueStatus;
   examinationStatus: ExaminationStatus;
   error: string | null;
   statusMessage: string;
   isLoading: boolean;
+  loginUrl?: string;
+  visitorId: number;
+  visitorName: string;
+}
+
+interface QueueEventData {
+  position: string;
+  estimatedWaitTime: string;
+  waitedTime: string | null;
+  joinedAt: string | null;
+}
+
+interface ExaminationEventData {
+  examination_id: string;
+  provider_id: string;
+  provider_name: string;
+  started_at: string;
+  duration: string;
+  reason: string;
+}
+
+interface PickupEventData {
+  provider: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  visitor: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  message: string;
+  started_at: string;
+  examination_id: number;
+  reason: string;
 }
 
 interface VisitorContextType {
   state: VisitorState;
+  fetchVisitorData: () => Promise<void>;
   joinQueue: (vseeId: string, reason: string) => Promise<void>;
   exitQueue: () => Promise<void>;
   clearError: () => void;
@@ -53,15 +87,24 @@ interface VisitorContextType {
 
 // Initial State
 const initialState: VisitorState = {
+  isAuthorized: null,
   queueStatus: {
     isInQueue: false,
+    position: null,
+    estimatedWaitTime: null,
+    waitedTime: null,
+    joinedAt: null,
   },
   examinationStatus: {
     isActive: false,
+    currentExamination: null,
   },
   error: null,
   statusMessage: '',
   isLoading: false,
+  loginUrl: undefined,
+  visitorId: 0,
+  visitorName: '',
 };
 
 // Context
@@ -69,81 +112,109 @@ const VisitorContext = createContext<VisitorContextType | undefined>(undefined);
 
 // Reducer
 type VisitorAction =
-  | { type: typeof VISITOR_EVENTS.PICKED_UP; payload: VisitorPickupEventData }
+  | { type: 'SET_AUTHORIZED'; payload: boolean }
+  | { type: 'SET_ERROR'; payload: { message: string; loginUrl?: string } }
+  | { type: 'SET_STATUS_MESSAGE'; payload: string }
+  | { type: 'SET_QUEUE_STATUS'; payload: QueueStatus }
+  | { type: 'SET_EXAMINATION_STATUS'; payload: ExaminationStatus }
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: typeof VISITOR_EVENTS.PICKED_UP; payload: PickupEventData }
   | { type: typeof VISITOR_EVENTS.DROPPED_OFF }
-  | { type: typeof VISITOR_EVENTS.JOINED_QUEUE; payload: QueueStatus }
   | { type: typeof VISITOR_EVENTS.EXITED_QUEUE }
-  | { type: typeof VISITOR_EVENTS.EXAMINATION_COMPLETED }
   | { type: typeof VISITOR_EVENTS.ERROR_OCCURRED; payload: string }
-  | { type: typeof VISITOR_EVENTS.UPDATE_QUEUE_STATUS; payload: QueueStatus }
-  | { type: typeof VISITOR_EVENTS.UPDATE_EXAMINATION_STATUS; payload: ExaminationStatus };
+  | { type: typeof VISITOR_EVENTS.UPDATE_QUEUE_STATUS; payload: QueueEventData }
+  | { type: typeof VISITOR_EVENTS.UPDATE_EXAMINATION_STATUS; payload: ExaminationEventData };
 
 const visitorReducer = (state: VisitorState, action: VisitorAction): VisitorState => {
+  const defaultQueueStatus: QueueStatus = {
+    isInQueue: false,
+    position: null,
+    estimatedWaitTime: null,
+    waitedTime: null,
+    joinedAt: null,
+  };
+
+  const defaultExaminationStatus: ExaminationStatus = {
+    isActive: false,
+    currentExamination: null,
+  };
+
   switch (action.type) {
+    case 'SET_AUTHORIZED':
+      return { ...state, isAuthorized: action.payload };
+    case 'SET_ERROR':
+      return { 
+        ...state, 
+        error: action.payload.message,
+        loginUrl: action.payload.loginUrl
+      };
+    case 'SET_STATUS_MESSAGE':
+      return { ...state, statusMessage: action.payload };
+    case 'SET_QUEUE_STATUS':
+      return { ...state, queueStatus: action.payload };
+    case 'SET_EXAMINATION_STATUS':
+      return { ...state, examinationStatus: action.payload };
+    case 'SET_LOADING':
+      return { ...state, isLoading: action.payload };
     case VISITOR_EVENTS.PICKED_UP:
+      const examination: ExaminationDetail = {
+        examination_id: action.payload.examination_id,
+        visitor_id: action.payload.visitor.id,
+        visitor_name: action.payload.visitor.name,
+        provider_id: action.payload.provider.id,
+        provider_name: action.payload.provider.name,
+        status: 'active',
+        started_at: action.payload.started_at,
+        duration: '0',
+        reason: action.payload.reason,
+      };
       return {
         ...state,
         examinationStatus: {
           isActive: true,
-          providerName: action.payload.provider.name,
-          providerId: action.payload.provider.id,
-          examinationId: action.payload.examination_id,
-          startedAt: action.payload.started_at,
+          currentExamination: examination
         },
-        queueStatus: { isInQueue: false },
-        statusMessage: `You are invited by ${action.payload.provider.name}. Your examination is in progress.`,
+        queueStatus: defaultQueueStatus,
+        statusMessage: action.payload.message
       };
-
     case VISITOR_EVENTS.DROPPED_OFF:
-      return {
-        ...state,
-        examinationStatus: { isActive: false },
-        statusMessage: 'Your examination has been completed.',
-      };
-
-    case VISITOR_EVENTS.JOINED_QUEUE:
-      return {
-        ...state,
-        queueStatus: action.payload,
-        examinationStatus: { isActive: false },
-        statusMessage: 'Your provider will shortly be with you.',
-        error: null,
-      };
-
-    case VISITOR_EVENTS.EXITED_QUEUE:
-      return {
-        ...state,
-        queueStatus: { isInQueue: false },
-        statusMessage: 'You have exited the queue.',
-        error: null,
-      };
-
-    case VISITOR_EVENTS.EXAMINATION_COMPLETED:
-      return {
-        ...state,
-        examinationStatus: { isActive: false },
-        statusMessage: 'Your examination has been completed.',
-      };
-
     case VISITOR_EVENTS.ERROR_OCCURRED:
       return {
         ...state,
-        error: action.payload,
+        ...(action.type === VISITOR_EVENTS.ERROR_OCCURRED ? { error: action.payload } : {}),
+        examinationStatus: defaultExaminationStatus,
+        queueStatus: defaultQueueStatus
       };
-
     case VISITOR_EVENTS.UPDATE_QUEUE_STATUS:
       return {
         ...state,
-        queueStatus: action.payload,
+        queueStatus: {
+          isInQueue: true,
+          position: parseInt(action.payload.position, 10),
+          estimatedWaitTime: action.payload.estimatedWaitTime,
+          waitedTime: action.payload.waitedTime,
+          joinedAt: action.payload.joinedAt,
+        }
       };
-
     case VISITOR_EVENTS.UPDATE_EXAMINATION_STATUS:
+      const updatedExamination: ExaminationDetail = {
+        examination_id: parseInt(action.payload.examination_id, 10),
+        visitor_id: state.visitorId,
+        visitor_name: state.visitorName,
+        provider_id: parseInt(action.payload.provider_id, 10),
+        provider_name: action.payload.provider_name,
+        status: 'active',
+        started_at: action.payload.started_at,
+        duration: action.payload.duration,
+        reason: action.payload.reason,
+      };
       return {
         ...state,
-        examinationStatus: action.payload,
-        queueStatus: { isInQueue: false },
+        examinationStatus: {
+          isActive: true,
+          currentExamination: updatedExamination
+        }
       };
-
     default:
       return state;
   }
@@ -151,136 +222,115 @@ const visitorReducer = (state: VisitorState, action: VisitorAction): VisitorStat
 
 // Provider Component
 export const VisitorProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [state, dispatch] = useReducer(visitorReducer, initialState);
 
-  const fetchQueueStatus = async () => {
+
+  const fetchQueueStatus = useCallback(async () => {
+    if (!user) return;
+  
     try {
       const queueItem = await queueService.getQueueItem();
       if (queueItem) {
         dispatch({
           type: VISITOR_EVENTS.UPDATE_QUEUE_STATUS,
           payload: {
-            isInQueue: true,
-            position: queueItem.position,
-            joinedAt: queueItem.joined_at,
-            waitedTime: queueItem.waited_time,
-            estimatedWaitTime: queueItem.estimated_wait_time,
-            totalVisitors: queueItem.total_visitors,
-          },
+            position: String(queueItem.position),
+            estimatedWaitTime: String(queueItem.estimated_wait_time),
+            waitedTime:String(queueItem.waited_time),
+            joinedAt:String(queueItem.joined_at)
+          }
         });
       }
-    } catch (err) {
+    } catch (error: any) {
+      handleUnauthorizedError(error, logout, 'Failed to fetch queue status');
       dispatch({
         type: VISITOR_EVENTS.ERROR_OCCURRED,
-        payload: 'Failed to fetch queue status',
+        payload: 'Failed to fetch queue status'
       });
     }
-  };
+  }, [user]);
 
-  const fetchExaminationStatus = async () => {
+  const fetchExaminationStatus = useCallback(async () => {
+    if (!user) return;
+  
     try {
       const examination = await examinationService.getVisitorExamination();
       if (examination && examination.status === 'in_progress') {
         dispatch({
           type: VISITOR_EVENTS.UPDATE_EXAMINATION_STATUS,
           payload: {
-            isActive: true,
-            providerName: examination.provider_name,
-            examinationId: examination.examination_id,
-            startedAt: examination.started_at,
+            examination_id: String(examination.examination_id),
+            provider_id: String(examination.provider_id),
+            provider_name: examination.provider_name,
+            started_at: examination.started_at,
             duration: examination.duration,
-          },
+            reason: examination.reason,
+          }
         });
       }
-    } catch (err) {
+    } catch (error: any) {
+      handleUnauthorizedError(error, logout, 'Failed to fetch queue status');
       dispatch({
         type: VISITOR_EVENTS.ERROR_OCCURRED,
-        payload: 'Failed to fetch examination status',
+        payload: 'Failed to fetch examination status'
       });
     }
-  };
+  }, [user]);
+
+  const fetchVisitorData = useCallback(async () => {
+    await fetchExaminationStatus();
+    await fetchQueueStatus();
+  }, [fetchExaminationStatus, fetchQueueStatus]);
 
   useEffect(() => {
     if (!user) return;
 
-    const fetchInitialStatus = async () => {
-      await fetchExaminationStatus();
-      if (!state.examinationStatus.isActive) {
-        await fetchQueueStatus();
-      }
-    };
-    fetchInitialStatus();
-
     const unsubscribeExamination = subscribeToChannel(`visitor.${user.type_id}`, {
-      'VisitorPickedUpEvent': async (data: VisitorPickupEventData) => {
+      'visitor.examination.pickedup': (data: PickupEventData) => {
         dispatch({ type: VISITOR_EVENTS.PICKED_UP, payload: data });
-        await fetchExaminationStatus();
       },
-      'VisitorExaminationCompletedEvent': () => {
-        dispatch({ type: VISITOR_EVENTS.EXAMINATION_COMPLETED });
-      },
-      'VisitorExitedEvent': () => {
+      'visitor.examination.completed': () => {
         dispatch({ type: VISITOR_EVENTS.DROPPED_OFF });
-      },
-    });
-
-    const unsubscribeQueue = subscribeToChannel('lounge.queue', {
-      'VisitorJoinedQueue': async (data: QueueEvent) => {
-        if (data.visitor_id === user.type_id) {
-          await fetchQueueStatus();
-        }
-      },
-      'VisitorExitedQueue': (data: QueueEvent) => {
-        if (data.visitor_id === user.type_id && !state.examinationStatus.isActive) {
-          dispatch({ type: VISITOR_EVENTS.EXITED_QUEUE });
-        }
-      },
+      }
     });
 
     return () => {
       unsubscribeExamination();
-      unsubscribeQueue();
     };
   }, [user]);
 
-  const joinQueue = async (vseeId: string, reason: string) => {
-    try {
-      await queueService.joinQueue(vseeId, reason);
-      // State will be updated by the VisitorJoinedQueue event
-    } catch (err) {
-      dispatch({
-        type: VISITOR_EVENTS.ERROR_OCCURRED,
-        payload: 'Failed to join queue',
-      });
-    }
-  };
-
-  const exitQueue = async () => {
-    if (!user) return;
-    try {
-      await queueService.exitQueue(user.type_id);
-      // State will be updated by the VisitorExitedQueue event
-    } catch (err) {
-      dispatch({
-        type: VISITOR_EVENTS.ERROR_OCCURRED,
-        payload: 'Failed to exit queue',
-      });
-    }
-  };
-
-  const clearError = () => {
-    dispatch({
-      type: VISITOR_EVENTS.ERROR_OCCURRED,
-      payload: '',
-    });
-  };
-
   const value = {
     state,
-    joinQueue,
-    exitQueue,
-    clearError,
+    fetchVisitorData,
+    joinQueue: async (vseeId: string, reason: string) => {
+      try {
+        await queueService.joinQueue(vseeId, reason);
+        await fetchQueueStatus();
+      } catch (err: any) {
+        dispatch({
+          type: VISITOR_EVENTS.ERROR_OCCURRED,
+          payload: 'Failed to join queue'
+        });
+      }
+    },
+    exitQueue: async () => {
+      try {
+        await queueService.exitQueue();
+        dispatch({ type: VISITOR_EVENTS.EXITED_QUEUE });
+      } catch (err: any) {
+        dispatch({
+          type: VISITOR_EVENTS.ERROR_OCCURRED,
+          payload: 'Failed to exit queue'
+        });
+      }
+    },
+    clearError: () => {
+      dispatch({
+        type: VISITOR_EVENTS.ERROR_OCCURRED,
+        payload: ''
+      });
+    }
   };
 
   return <VisitorContext.Provider value={value}>{children}</VisitorContext.Provider>;
@@ -293,4 +343,4 @@ export const useVisitor = () => {
     throw new Error('useVisitor must be used within a VisitorProvider');
   }
   return context;
-}; 
+};

@@ -4,6 +4,15 @@ export interface QueueVisitor {
   visitor_name: string;
   reason?: string;
   waiting_time: string;
+  email?: string;
+}
+
+export interface QueueItem {
+  position: number;
+  joined_at: string;
+  waited_time: string;
+  estimated_wait_time: string;
+  total_visitors: number;
 }
 
 export interface QueueResponse {

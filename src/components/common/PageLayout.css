@@ -1,0 +1,29 @@
+.page-layout {
+  padding: 24px;
+}
+
+/* Layout with stacked panels */
+.page-layout.stacked-panels > * + * {
+  margin-top: 24px;
+}
+
+/* Layout with split panels */
+.page-layout.split-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+/* Layout with sidebar */
+.page-layout.with-sidebar {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 24px;
+}
+
+/* Layout with three columns */
+.page-layout.three-columns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+} 
