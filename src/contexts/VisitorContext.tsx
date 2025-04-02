@@ -317,7 +317,8 @@ export const VisitorProvider: React.FC<{ children: React.ReactNode }> = ({ child
     exitQueue: async () => {
       try {
         await queueService.exitQueue();
-        dispatch({ type: VISITOR_EVENTS.EXITED_QUEUE });
+        dispatch({ type: 'SET_QUEUE_STATUS', payload: initialState.queueStatus });
+        //dispatch({ type: VISITOR_EVENTS.EXITED_QUEUE });
       } catch (err: any) {
         dispatch({
           type: VISITOR_EVENTS.ERROR_OCCURRED,
