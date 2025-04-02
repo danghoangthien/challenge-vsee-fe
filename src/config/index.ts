@@ -4,10 +4,10 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localho
 // Pusher Configuration
 export const PUSHER_APP_KEY = import.meta.env.VITE_PUSHER_APP_KEY;
 export const PUSHER_APP_CLUSTER = import.meta.env.VITE_PUSHER_APP_CLUSTER;
-// Remove explicit host setting to use Pusher defaults
-// export const PUSHER_APP_HOST = import.meta.env.VITE_PUSHER_APP_HOST;
-export const PUSHER_APP_PORT = import.meta.env.VITE_PUSHER_APP_PORT;
-export const PUSHER_APP_SCHEME = import.meta.env.VITE_PUSHER_APP_SCHEME;
+// Derive host from cluster
+export const PUSHER_APP_HOST = `api-${PUSHER_APP_CLUSTER}.pusher.com`;
+export const PUSHER_APP_PORT = import.meta.env.VITE_PUSHER_APP_PORT || '443';
+export const PUSHER_APP_SCHEME = import.meta.env.VITE_PUSHER_APP_SCHEME || 'https';
 
 // Other app configurations can be added here
 export const APP_NAME = 'VSee Challenge - Clinic Room';

@@ -2,6 +2,8 @@ import Pusher from 'pusher-js';
 import {
   PUSHER_APP_KEY,
   PUSHER_APP_CLUSTER,
+  PUSHER_APP_HOST,
+  PUSHER_APP_PORT,
   PUSHER_APP_SCHEME,
 } from '../config';
 
@@ -12,6 +14,10 @@ const pusher = new Pusher(PUSHER_APP_KEY, {
   cluster: PUSHER_APP_CLUSTER,
   forceTLS: true,
   enabledTransports: ['ws', 'wss'],
+  wsHost: PUSHER_APP_HOST,
+  wsPort: Number(PUSHER_APP_PORT),
+  wssPort: Number(PUSHER_APP_PORT),
+  wsPath: '',
   channelAuthorization: {
     endpoint: '/api/pusher/auth',
     transport: 'ajax',
@@ -23,7 +29,8 @@ const pusher = new Pusher(PUSHER_APP_KEY, {
 pusher.connection.bind('connecting', () => {
   console.log('Connecting to Pusher...', {
     key: PUSHER_APP_KEY,
-    cluster: PUSHER_APP_CLUSTER
+    cluster: PUSHER_APP_CLUSTER,
+    host: PUSHER_APP_HOST
   });
 });
 
