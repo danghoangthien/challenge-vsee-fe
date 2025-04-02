@@ -188,6 +188,7 @@ export const ProviderProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const unsubscribeQueue = subscribeToChannel('lounge.queue', {
       'visitor.joined.queue': async () => {
+        console.log('catch visitor.joined.queue', true);
         const response = await queueService.getWaitingList();
         dispatch({ 
           type: 'SET_QUEUE_STATUS', 
@@ -198,6 +199,7 @@ export const ProviderProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
       },
       'visitor.exited.queue': async () => {
+        console.log('catch visitor.exited.queue', true);
         const response = await queueService.getWaitingList();
         dispatch({ 
           type: 'SET_QUEUE_STATUS', 
