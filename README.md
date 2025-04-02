@@ -41,9 +41,13 @@ npm install
 ```
 
 3. **Configure environment variables**
-Create a `.env` file in the root directory:
+Create a `.env` file in the root directory with the following variables:
+
 ```env
+# API Configuration
 VITE_API_BASE_URL=http://localhost:8000/api
+
+# Pusher Configuration
 VITE_PUSHER_APP_KEY=your-pusher-key
 VITE_PUSHER_APP_CLUSTER=your-pusher-cluster
 VITE_PUSHER_APP_HOST=localhost
@@ -51,10 +55,20 @@ VITE_PUSHER_APP_PORT=6001
 VITE_PUSHER_APP_SCHEME=http
 ```
 
+Environment Variables Description:
+- `VITE_API_BASE_URL`: Base URL for the backend API
+- `VITE_PUSHER_APP_KEY`: Your Pusher application key
+- `VITE_PUSHER_APP_CLUSTER`: Pusher cluster region (e.g., 'ap1', 'us2')
+- `VITE_PUSHER_APP_HOST`: Pusher server host (use 'localhost' for development)
+- `VITE_PUSHER_APP_PORT`: Pusher server port (default: 6001)
+- `VITE_PUSHER_APP_SCHEME`: Connection scheme ('http' or 'https')
+
 4. **Start development server**
 ```bash
 npm run dev
 ```
+
+The application will be available at `http://localhost:5173`
 
 ## Project Structure
 
