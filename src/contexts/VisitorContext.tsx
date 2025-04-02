@@ -303,6 +303,12 @@ export const VisitorProvider: React.FC<{ children: React.ReactNode }> = ({ child
         console.log('catch visitor.exited.queue', true);
         await fetchQueueStatus();
       },
+      'visitor.examination.pickedup': async (data: PickupEventData) => {
+        if (data.visitor.id !== user.type_id) {
+          console.log('catch visitor.examination.pickedup', true);
+          await fetchQueueStatus();
+        }
+      },
     });
 
     return () => {
