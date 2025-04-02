@@ -135,6 +135,14 @@ export const ProviderProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       await queueService.pickupVisitor(visitorId);
       await fetchExaminationStatus();
       dispatch({ type: 'SET_STATUS_MESSAGE', payload: 'Visitor picked up successfully' });
+      const response = await queueService.getWaitingList();
+      dispatch({ 
+        type: 'SET_QUEUE_STATUS', 
+        payload: { 
+          isInQueue: true,
+          visitors: response.data.visitors 
+        } 
+      });
     } catch (error: any) {
       handleUnauthorizedError(error, logout, 'Failed to pickup visitor');
     }
@@ -162,19 +170,19 @@ export const ProviderProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!user) return;
 
     const unsubscribe = subscribeToChannel(`provider.${user.type_id}`, {
-      'provider.pickedup.visitor': async (data) => {
-        console.log('catch provider.pickedup.visitor', true);
-        await fetchExaminationStatus();
-        const response = await queueService.getWaitingList();
-        console.log('[getWaitingList]response', response)
-        dispatch({ 
-          type: 'SET_QUEUE_STATUS', 
-          payload: { 
-            isInQueue: true,
-            visitors: response.data.visitors 
-          } 
-        });
-      },
+      // 'provider.pickedup.visitor': async (data) => {
+      //   console.log('catch provider.pickedup.visitor', true);
+      //   await fetchExaminationStatus();
+      //   const response = await queueService.getWaitingList();
+      //   console.log('[getWaitingList]response', response)
+      //   dispatch({ 
+      //     type: 'SET_QUEUE_STATUS', 
+      //     payload: { 
+      //       isInQueue: true,
+      //       visitors: response.data.visitors 
+      //     } 
+      //   });
+      // },
       'provider.completed.examination': () => {
         dispatch({
           type: 'SET_EXAMINATION_STATUS',
@@ -185,6 +193,23 @@ export const ProviderProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
       },
     });
+
+    const unsubscribeProvidersChannel = subscribeToChannel(`providers`, {
+      'provider.pickedup.visitor': async (data) => {
+        console.log('catch provider.pickedup.visitor', true);
+        const response = await queueService.getWaitingList();
+        console.log('[getWaitingList]response', response)
+        dispatch({ 
+          type: 'SET_QUEUE_STATUS', 
+          payload: { 
+            isInQueue: true,
+            visitors: response.data.visitors 
+          } 
+        });
+      },
+
+    });  
+
 
     const unsubscribeQueue = subscribeToChannel('lounge.queue', {
       'visitor.joined.queue': async () => {
@@ -214,6 +239,7 @@ export const ProviderProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => {
       unsubscribe();
       unsubscribeQueue();
+      unsubscribeProvidersChannel();
     };
   }, [user]);
 
