@@ -82,6 +82,7 @@ interface VisitorContextType {
   fetchVisitorData: () => Promise<void>;
   joinQueue: (vseeId: string, reason: string) => Promise<void>;
   exitQueue: () => Promise<void>;
+  exitExamination: (providerId: number) => Promise<void>;
   clearError: () => void;
 }
 
@@ -340,6 +341,16 @@ export const VisitorProvider: React.FC<{ children: React.ReactNode }> = ({ child
         dispatch({
           type: VISITOR_EVENTS.ERROR_OCCURRED,
           payload: 'Failed to exit queue'
+        });
+      }
+    },
+    exitExamination: async (providerId: number) => {
+      try {
+        await queueService.completeExaminationByCurrentVisitor(providerId);
+      } catch (err: any) {
+        dispatch({  
+          type: VISITOR_EVENTS.ERROR_OCCURRED,
+          payload: 'Failed to exit examination'
         });
       }
     },

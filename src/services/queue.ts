@@ -34,9 +34,16 @@ class QueueService {
     return response.data;
   }
 
-  async completeExamination(visitorId: number): Promise<QueueActionResponse> {
+  async completeExaminationByCurrentProvider(visitorId: number): Promise<QueueActionResponse> {
     const response = await api.post<QueueActionResponse>('/provider/examination/complete', {
       visitor_id: visitorId,
+    });
+    return response.data;
+  }
+
+  async completeExaminationByCurrentVisitor(providerId: number): Promise<QueueActionResponse> {
+    const response = await api.post<QueueActionResponse>('/visitor/examination/complete', {
+      provider_id: providerId,
     });
     return response.data;
   }

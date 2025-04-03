@@ -152,7 +152,7 @@ export const ProviderProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!user) return;
 
     try {
-      await queueService.completeExamination(visitorId);
+      await queueService.completeExaminationByCurrentProvider(visitorId);
       dispatch({ 
         type: 'SET_EXAMINATION_STATUS', 
         payload: { 
@@ -192,6 +192,15 @@ export const ProviderProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           },
         });
       },
+      'visitor.examination.completed': () => {
+        dispatch({
+          type: 'SET_EXAMINATION_STATUS',
+          payload: {
+            isActive: false,
+            currentExamination: null,
+          },
+        });
+      }
     });
 
     const unsubscribeProvidersChannel = subscribeToChannel(`providers`, {
